@@ -1,23 +1,45 @@
+clc
 %% Paramenters
-dt = 0.1; % sampling period [s]
-T = 6; % total time span [s]
+dt = 0.01; % sampling period [s]
+T_max = 6; % total time span [s]
+T = 0:dt:T_max;
 
-%% 1. generate reference trajectory
-% given waypoints solve open loop characteristic and corresponding input
-% function (steering angle and acceleration)
+%% 1. load and interpolate reference trajectory
+load('ref_traj.mat');
 
-%% 2. interpolation reference trajectroy
-% vq = interp1(x, v, xq) 
+U_ref = interp1(0:0.05:T_max, [U(:,1),U]', T)';
+Y_ref = interp1(0:0.05:T_max, Y', T)';
 
-%% 3. linearization about the reference trajectory
-% x(i+1) = Ai * x(i) + Bi * u(i)
+figure(1)
+plot(Y_ref(1,:), Y_ref(2,:), '--', 'LineWidth', 1.2)
+axis equal
+xlim([-0.5, 6.5])
 
-%% 4. MPC loop
+figure(2)
+subplot(2,1,1)
+plot(T, U_ref(1,:), '--', 'LineWidth', 1.2);
+ylim([0 1.5]);
+grid on
+subplot(2,1,2)
+plot(T, U_ref(2,:), '--', 'LineWidth', 1.2);
+ylim([-1 1]);
+grid on
+
+
+
+
+%% 3. MPC loop
 % define MPC paramenters and constraints
-% initial condition X0 = [x0, y0, psi0, v0]
+n_pred=10;
+
+Ndec=3*(n_pred+1)+2*n_pred; 
+
+% initial condition X0 = [x0; y0; psi0; v0]
+x0 = [0.25; 0.25; -1; 5];
+
 
 % for
-%   compute equality constraint
+%   compute equality constraint with linearized model(trajectory)
 %   compute inequality constraint
 %   solve qp
 %   simulate output using ode45 function
