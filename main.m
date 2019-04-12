@@ -1,6 +1,4 @@
-%% Define paramenters
-L = 3; % m
-b = 1.5; % m
+%% Paramenters
 dt = 0.1; % sampling period [s]
 T = 6; % total time span [s]
 
