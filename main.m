@@ -4,29 +4,10 @@ clc
 
 %% Paramenters
 dt = 0.05; % sampling period [s]
-T_max = 6; % total time span [s]
-T = 0:dt:T_max;
 
-%% 1. Load and interpolate reference trajectory
-load('ref_traj.mat');
-
-U_ref = interp1(0:0.05:T_max, [U(:,1),U]', T)';
-X_ref = interp1(0:0.05:T_max, X', T)';
-
-figure(1)
-plot(X_ref(1,:), X_ref(2,:), '--', 'LineWidth', 1.2)
-axis equal
-xlim([-0.5, 6.5])
-
-figure(2)
-subplot(2,1,1)
-plot(T, U_ref(1,:), '--', 'LineWidth', 1.2);
-ylim([-1 1]);
-grid on
-subplot(2,1,2)
-plot(T, U_ref(2,:), '--', 'LineWidth', 1.2);
-ylim([-1 1]);
-grid on
+%% 1. Load reference trajectory
+load('ref_traj_1.mat');
+t_traj = 0:dt:(length(X_ref)-1)*dt;
 
 %% 2. MPC loop
 % Define MPC paramenters and constraints
@@ -39,14 +20,14 @@ H_blk = blkdiag(Q_blk, R_blk);
 
 % Initial condition x = [x0; y0; psi0; v0], u = [delta0, acc0]
 x0 = [0.1; 0.3; -0.2; 0];
-x_arr = [];
-u_arr = [];
+X_actual = [];
+U_actual = [];
 
-% execution time
-avg_time = 0;
+% computation time in each iteration
+com_time = [];
 
 % Iterations
-for i = 1:length(X_ref)-Np
+for i = 1:length(t_traj)-Np
     % Start tick to record performance
     tic
     
@@ -70,22 +51,60 @@ for i = 1:length(X_ref)-Np
     u_star = du_star + u_ref(:,1);
     
     % Simulate output using ode45 function
-    [~, x] = ode45(@(t,x) vehicle_dynamics(x, u_star), [0:0.005:dt], x0);
-    % Record actual state x and output
-    x0 = x(end,:)' + 0.001*randn(4,1);
-    x_arr = [x_arr, x'];
-    u_arr = [u_arr, u_star];
-
-    avg_time = avg_time + time_elapse/(length(X_ref)-Np);
+    [~, x] = ode45(@(t,x) vehicle_dynamics(x, u_star), 0:0.005:dt, x0);
     
+    % Record actual state x and output
+    x0 = x(end,:)';
+    X_actual = [X_actual, x'];
+    U_actual = [U_actual, u_star];
+
+    % Record computation time
+    com_time = [com_time, time_elapse];
 end
+
+% Prost process of data
+com_time_avg = mean(com_time);
+t_iter = 0:dt:(length(com_time)-1)*dt;
 
 %% Plot results
 figure(1)
-hold on
-plot(x_arr(1,:), x_arr(2,:), 'LineWidth', 1.2)
-hold off
+title('Path')
+plot(X_ref(1,:), X_ref(2,:), '--', X_actual(1,:), X_actual(2,:), 'LineWidth', 1.2)
+axis equal
+grid on
+xlim([-0.5, 6.5])
+xlabel('x');
+ylabel('y');
 
+figure(2)
+subplot(2,1,1)
+plot(t_traj, U_ref(1,:), '--', t_iter, U_actual(1,:), 'LineWidth', 1.2);
+title('steering angle')
+xlabel('time (s)')
+ylabel('delta (rad)')
+ylim([-1 1]);
+grid on
+subplot(2,1,2)
+plot(t_traj, U_ref(2,:), '--', t_iter, U_actual(2,:), 'LineWidth', 1.2);
+title('acceleration')
+xlabel('time (s)')
+ylabel('a (m/s^2)')
+ylim([-1.6 1.6]);
+grid on
+
+figure(3)
+plot(t_iter, com_time, t_iter, dt*ones(1,length(t_iter)), '--', 'LineWidth', 1.2)
+str = sprintf('average time: %.4f', com_time_avg);
+text(1,0.06, str)
+grid on
+title('computation time')
+xlabel('time (s)')
+ylabel('computation time')
+ylim([0 0.08])
+xlim([-inf inf])
+
+
+%% Function for constructing equality constraints and inequality constraints
 function [Aeq, beq] = eq_constraint(x_ref, u_ref, x0, dt)
 
     Np = length(x_ref);
