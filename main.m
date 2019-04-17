@@ -35,61 +35,97 @@ Q = 10*eye(4);
 R = 0.2*eye(2);
 Q_blk = kron(eye(Np+1), Q);
 R_blk = kron(eye(Np), R);
-
-% Input and state contraints
-delta_upper = 37 * (pi/180); % [rad]
-delta_lower = -37 * (pi/180); % [rad]
-acc_upper = 1.5; % [m/s^2]
-acc_lower = -1.5; % [m/s^2]
-y_upper = 1.6; % [m]
-y_lower = -1.6; % [m]
-x_upper = 3; % [m]
-x_lower = -1; % [m]
+H_blk = blkdiag(Q_blk, R_blk);
 
 % Initial condition x = [x0; y0; psi0; v0], u = [delta0, acc0]
-x = [0.25; 0.25; -1; 0];
-u = [0; 0];
+x0 = [2; 0.8; -0.2; 0];
+x_arr = [];
+u_arr = [];
 
 % Iterations
-for i = 1:1
+for i = 1:121-Np
     
-    % Construct state transition matrix
+    % Construct equality constraint matrix
     x_ref = X_ref(:,i:i+Np-1);
     u_ref = U_ref(:,i:i+Np-1);
     
-    A_cell = cell(Np,1);
-    B_cell = cell(Np,1);
-    for j = 1:Np
-        [A_cell{j}, B_cell{j}] = ltv_mdl(x_ref(:,j), u_ref(:,j), dt);
-    end
-    
-    F_cell = cell(Np+1, 1);
-    Phi_cell = cell(Np+1, Np);
-    for j = 1:Np+1
-        F_cell{j} = ones(4,4);
-        for k = 1:Np
-            if k < j
-                Phi_cell{j, k} = ones(4,2);
-            else
-                Phi_cell{j, k} = zeros(4,2);
-            end
-            
-        end
-    end
-    F = cell2mat(F_cell);
-    Phi = cell2mat(Phi_cell);
+    [Aeq, beq] = eq_constraint(x_ref, u_ref, (x0-x_ref(:,1)), dt);
     
     % Inequality constraint
+    [lb, ub] = ineq_constraint(u_ref, Np);
     
-    
-%     H = Phi'*Q_blk*Phi + R_blk;
     % Solve qp
-%     dU = cplexqp(H, zeros(4*(Np+1), 1), A, b);
-    % Simulate output using ode45 function
+    D_star = cplexqp(H_blk, zeros((6*Np+4),1), [], [], Aeq, beq, lb, ub);
     
-    % Record actual state x and output 
-
+    % exract the first optimal control input
+    du_star = D_star(4*(Np+1)+1:4*(Np+1)+2,1);
+    u_star = du_star + u_ref(:,1);
+    
+    % Simulate output using ode45 function
+    [~, x] = ode45(@(t,x) vehicle_dynamics(x, u_star), [0:0.005:dt], x0);
+    % Record actual state x and output
+    x0 = x(end,:)';
+    x_arr = [x_arr, x'];
+    u_arr = [u_arr, u_star];
 end
 
 %% Plot results
+figure(1)
+hold on
+plot(x_arr(1,:), x_arr(2,:), 'LineWidth', 1.2)
+hold off
 
+function [Aeq, beq] = eq_constraint(x_ref, u_ref, x0, dt)
+
+    Np = length(x_ref);
+
+    beq = zeros(4*(Np+1),1);
+    beq(1:4, 1) = x0;
+
+    A_cell = cell(Np,1);
+    B_cell = cell(Np,1);
+
+    for i = 1:Np
+        [A_cell{i}, B_cell{i}] = ltv_mdl(x_ref(:,i), u_ref(:,i), dt);
+    end
+
+    Aeq_cell = cell(Np+1, 2*Np+1);
+    Aeq_cell(:,1:Np+1) = {zeros(4,4)};
+    Aeq_cell(:,Np+2:end) = {zeros(4,2)};
+    Aeq_cell{1,1} = eye(4);
+    for j = 2:Np+1
+        Aeq_cell{j,j-1} = A_cell{j-1};
+        Aeq_cell{j,j} = -eye(4);
+        Aeq_cell{j,j+Np} = B_cell{j-1};
+    end
+
+    Aeq = cell2mat(Aeq_cell);
+
+end
+
+function [lb, ub] = ineq_constraint(u_ref, Np)
+    % Input and state contraints
+    delta_upper = 37 * (pi/180); % [rad]
+    delta_lower = -37 * (pi/180); % [rad]
+    acc_upper = 1.5; % [m/s^2]
+    acc_lower = -1.5; % [m/s^2]
+    x_upper = 3; % [m]
+    x_lower = -3; % [m]
+    y_upper = 1.6; % [m]
+    y_lower = -1.6; % [m]
+    psi_upper = 30 * (pi/180); % [rad]
+    psi_lower = -30 * (pi/180); % [rad]
+    u_upper = 5; % [m/s]
+    u_lower = -5; % [m/s]
+    
+    u_ref_v = reshape(u_ref, 2*Np,1);
+    
+    x_ub = repmat([x_upper; y_upper; psi_upper; u_upper], (Np+1), 1);
+    x_lb = repmat([x_lower; y_lower; psi_lower; u_lower], (Np+1), 1);
+    u_ub = repmat([delta_upper; acc_upper], Np, 1) - u_ref_v;
+    u_lb = repmat([delta_lower; acc_lower], Np, 1) - u_ref_v;
+    
+    ub = [x_ub; u_ub];
+    lb = [x_lb; u_lb];
+    
+end

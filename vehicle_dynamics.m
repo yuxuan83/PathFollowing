@@ -1,4 +1,4 @@
-function dxdt = vehicle_dynamic(x, u)
+function dxdt = vehicle_dynamics(x, u)
     % Vehicle parameters
     lf = 1.105; % center to front wheel length [m]
     lr = 1.738; % center to rear wheel length [m]
