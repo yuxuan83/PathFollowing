@@ -38,17 +38,22 @@ R_blk = kron(eye(Np), R);
 H_blk = blkdiag(Q_blk, R_blk);
 
 % Initial condition x = [x0; y0; psi0; v0], u = [delta0, acc0]
-x0 = [2; 0.8; -0.2; 0];
+x0 = [0.2; 0.8; -0.2; 0];
 x_arr = [];
 u_arr = [];
 
+% execution time
+avg_time = 0;
+
 % Iterations
-for i = 1:121-Np
+for i = 1:length(X_ref)-Np
+    % Start tick to record performance
+    tic
     
-    % Construct equality constraint matrix
     x_ref = X_ref(:,i:i+Np-1);
     u_ref = U_ref(:,i:i+Np-1);
     
+    % Construct equality constraint matrix
     [Aeq, beq] = eq_constraint(x_ref, u_ref, (x0-x_ref(:,1)), dt);
     
     % Inequality constraint
@@ -56,6 +61,9 @@ for i = 1:121-Np
     
     % Solve qp
     D_star = cplexqp(H_blk, zeros((6*Np+4),1), [], [], Aeq, beq, lb, ub);
+    
+    % Stop tick
+    time_elapse = toc;
     
     % exract the first optimal control input
     du_star = D_star(4*(Np+1)+1:4*(Np+1)+2,1);
@@ -67,6 +75,9 @@ for i = 1:121-Np
     x0 = x(end,:)';
     x_arr = [x_arr, x'];
     u_arr = [u_arr, u_star];
+
+    avg_time = avg_time + time_elapse/(length(X_ref)-Np);
+    
 end
 
 %% Plot results
