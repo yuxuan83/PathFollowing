@@ -31,14 +31,14 @@ grid on
 %% 2. MPC loop
 % Define MPC paramenters and constraints
 Np = 10; % finite time step
-Q = 10*eye(4);
-R = 0.2*eye(2);
+Q = blkdiag(10, 50, 1, 1);
+R = blkdiag(0.5,0.1);
 Q_blk = kron(eye(Np+1), Q);
 R_blk = kron(eye(Np), R);
 H_blk = blkdiag(Q_blk, R_blk);
 
 % Initial condition x = [x0; y0; psi0; v0], u = [delta0, acc0]
-x0 = [0.2; 0.8; -0.2; 0];
+x0 = [0.1; 0.3; -0.2; 0];
 x_arr = [];
 u_arr = [];
 
@@ -72,7 +72,7 @@ for i = 1:length(X_ref)-Np
     % Simulate output using ode45 function
     [~, x] = ode45(@(t,x) vehicle_dynamics(x, u_star), [0:0.005:dt], x0);
     % Record actual state x and output
-    x0 = x(end,:)';
+    x0 = x(end,:)' + 0.001*randn(4,1);
     x_arr = [x_arr, x'];
     u_arr = [u_arr, u_star];
 
