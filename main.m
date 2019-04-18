@@ -6,7 +6,7 @@ clc
 dt = 0.05; % sampling period [s]
 
 %% 1. Load reference trajectory
-load('ref_traj_1.mat');
+load('ref_traj_3.mat');
 t_traj = 0:dt:(length(X_ref)-1)*dt;
 
 %% 2. MPC loop
@@ -19,7 +19,7 @@ R_blk = kron(eye(Np), R);
 H_blk = blkdiag(Q_blk, R_blk);
 
 % Initial condition x = [x0; y0; psi0; v0], u = [delta0, acc0]
-x0 = [0.1; 0.3; -0.2; 0];
+x0 = [0; 0; 0.4; 2.5];
 X_actual = [];
 U_actual = [];
 
@@ -72,7 +72,7 @@ title('Path')
 plot(X_ref(1,:), X_ref(2,:), '--', X_actual(1,:), X_actual(2,:), 'LineWidth', 1.2)
 axis equal
 grid on
-xlim([-0.5, 6.5])
+xlim([-0.5, max(X_ref(1,:))+1])
 xlabel('x');
 ylabel('y');
 
@@ -143,8 +143,8 @@ function [lb, ub] = ineq_constraint(u_ref, Np)
     x_lower = -3; % [m]
     y_upper = 1.6; % [m]
     y_lower = -1.6; % [m]
-    psi_upper = 30 * (pi/180); % [rad]
-    psi_lower = -30 * (pi/180); % [rad]
+    psi_upper = 90 * (pi/180); % [rad]
+    psi_lower = -90 * (pi/180); % [rad]
     u_upper = 5; % [m/s]
     u_lower = -5; % [m/s]
     
