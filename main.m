@@ -6,20 +6,20 @@ clc
 dt = 0.05; % sampling period [s]
 
 %% 1. Load reference trajectory
-load('ref_traj_3.mat');
+load('ref_traj_5.mat');
 t_traj = 0:dt:(length(X_ref)-1)*dt;
 
 %% 2. MPC loop
 % Define MPC paramenters and constraints
 Np = 10; % finite time step
-Q = blkdiag(10, 50, 1, 1);
+Q = blkdiag(10, 10, 1, 1);
 R = blkdiag(0.5,0.1);
 Q_blk = kron(eye(Np+1), Q);
 R_blk = kron(eye(Np), R);
 H_blk = blkdiag(Q_blk, R_blk);
 
 % Initial condition x = [x0; y0; psi0; v0], u = [delta0, acc0]
-x0 = [0; 0; 0.4; 2.5];
+x0 = [0; 0; 1.5; 2.5];
 X_actual = [];
 U_actual = [];
 
@@ -139,10 +139,10 @@ function [lb, ub] = ineq_constraint(u_ref, Np)
     delta_lower = -37 * (pi/180); % [rad]
     acc_upper = 1.5; % [m/s^2]
     acc_lower = -1.5; % [m/s^2]
-    x_upper = 3; % [m]
-    x_lower = -3; % [m]
-    y_upper = 1.6; % [m]
-    y_lower = -1.6; % [m]
+    x_upper = 2; % [m]
+    x_lower = -2; % [m]
+    y_upper = 2; % [m]
+    y_lower = -2; % [m]
     psi_upper = 90 * (pi/180); % [rad]
     psi_lower = -90 * (pi/180); % [rad]
     u_upper = 5; % [m/s]
