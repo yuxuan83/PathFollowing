@@ -4,22 +4,23 @@ clc
 
 %% Paramenters
 dt = 0.05; % sampling period [s]
+sim_dt = 0.005;
 
 %% 1. Load reference trajectory
-load('ref_traj_5.mat');
-t_traj = 0:dt:(length(X_ref)-1)*dt;
+load('ref_traj_3.mat');
+t_traj = (0:(length(X_ref)-1)) * dt;
 
 %% 2. MPC loop
 % Define MPC paramenters and constraints
 Np = 10; % finite time step
-Q = blkdiag(10, 10, 1, 1);
-R = blkdiag(0.5,0.1);
+Q = blkdiag(10, 10, 2, 2);
+R = blkdiag(0.5,0.5);
 Q_blk = kron(eye(Np+1), Q);
 R_blk = kron(eye(Np), R);
 H_blk = blkdiag(Q_blk, R_blk);
 
 % Initial condition x = [x0; y0; psi0; v0], u = [delta0, acc0]
-x0 = [0; 0; 1.5; 2.5];
+x0 = [0.2; 0.2; 0.4; 2.4];
 X_actual = [];
 U_actual = [];
 
@@ -27,75 +28,137 @@ U_actual = [];
 com_time = [];
 
 % Iterations
-for i = 1:length(t_traj)-Np
+for i = 1:length(t_traj)
     % Start tick to record performance
     tic
-    
-    x_ref = X_ref(:,i:i+Np-1);
-    u_ref = U_ref(:,i:i+Np-1);
-    
-    % Construct equality constraint matrix
-    [Aeq, beq] = eq_constraint(x_ref, u_ref, (x0-x_ref(:,1)), dt);
-    
-    % Inequality constraint
-    [lb, ub] = ineq_constraint(u_ref, Np);
-    
-    % Solve qp
-    D_star = cplexqp(H_blk, zeros((6*Np+4),1), [], [], Aeq, beq, lb, ub);
-    
+    if i + Np > length(t_traj)
+        % Case for the tail of trajectory where i + Np > length(t_traj)      
+        N = length(t_traj) - i + 1;
+        
+        % Construct a temporary weight matrix
+        Q_blk_temp = kron(eye(N+1), Q);
+        R_blk_temp = kron(eye(N), R);
+        H_blk_temp = blkdiag(Q_blk_temp, R_blk_temp);
+        
+        % Reference trajectory
+        x_ref = X_ref(:,i:i+N-1);
+        u_ref = U_ref(:,i:i+N-1);
+        
+        % Construct equality constraint matrix
+        [Aeq, beq] = eq_constraint(x_ref, u_ref, (x0-x_ref(:,1)), dt, N);
+
+        % Inequality constraint
+        [lb, ub] = ineq_constraint(u_ref, N);
+
+        % Solve qp
+        D_star = cplexqp(H_blk_temp, zeros((6*N+4),1), [], [], Aeq, beq, lb, ub);
+
+        % Stop tick
+        time_elapse = toc;
+
+        % exract the first optimal control input
+        du_star = D_star(4*(N+1)+1:4*(N+1)+2,1);
+    else
+        % Normal case
+        
+        % Reference trajectory
+        x_ref = X_ref(:,i:i+Np-1);
+        u_ref = U_ref(:,i:i+Np-1);
+
+        % Construct equality constraint matrix
+        [Aeq, beq] = eq_constraint(x_ref, u_ref, (x0-x_ref(:,1)), dt, Np);
+
+        % Inequality constraint
+        [lb, ub] = ineq_constraint(u_ref, Np);
+
+        % Solve qp
+        D_star = cplexqp(H_blk, zeros((6*Np+4),1), [], [], Aeq, beq, lb, ub);
+
+        % exract the first optimal control input
+        du_star = D_star(4*(Np+1)+1:4*(Np+1)+2,1);
+    end
     % Stop tick
     time_elapse = toc;
     
-    % exract the first optimal control input
-    du_star = D_star(4*(Np+1)+1:4*(Np+1)+2,1);
+    % Vehicle control input
     u_star = du_star + u_ref(:,1);
     
     % Simulate output using ode45 function
-    [~, x] = ode45(@(t,x) vehicle_dynamics(x, u_star), 0:0.005:dt, x0);
+    [~, x] = ode45(@(t,x) vehicle_dynamics(x, u_star), 0:sim_dt:dt, x0);
     
     % Record actual state x and output
     x0 = x(end,:)';
-    X_actual = [X_actual, x'];
+    X_actual = [X_actual, x(2:end,:)'];
     U_actual = [U_actual, u_star];
 
-    % Record computation time
+    % Record computational time
     com_time = [com_time, time_elapse];
 end
 
 % Prost process of data
 com_time_avg = mean(com_time);
-t_iter = 0:dt:(length(com_time)-1)*dt;
+t_actual = (0:(length(X_actual)-1)) * sim_dt;
 
 %% Plot results
+% Plot path: x versus y
 figure(1)
-title('Path')
 plot(X_ref(1,:), X_ref(2,:), '--', X_actual(1,:), X_actual(2,:), 'LineWidth', 1.2)
 axis equal
 grid on
+title('Path')
 xlim([-0.5, max(X_ref(1,:))+1])
 xlabel('x');
 ylabel('y');
 
+% Plot states versus time
 figure(2)
+suptitle('States Versus Time')
+% x
+subplot(4,1,1) 
+plot(t_traj, X_ref(1,:), '--', t_actual, X_actual(1,:), 'LineWidth', 1.2);
+grid on
+xlabel('time (s)');
+ylabel('x (m)');
+% y
+subplot(4,1,2)
+plot(t_traj, X_ref(2,:), '--', t_actual, X_actual(2,:), 'LineWidth', 1.2);
+grid on
+xlabel('time (s)');
+ylabel('y (m)');
+% psi
+subplot(4,1,3)
+plot(t_traj, X_ref(3,:), '--', t_actual, X_actual(3,:), 'LineWidth', 1.2);
+grid on
+xlabel('time (s)');
+ylabel('\psi (rad)');
+% u
+subplot(4,1,4)
+plot(t_traj, X_ref(4,:), '--', t_actual, X_actual(4,:), 'LineWidth', 1.2);
+grid on
+xlabel('time (s)');
+ylabel('u (m/s)');
+
+% Plot input versus time
+figure(3)
+suptitle('Inputs Versus Time')
 subplot(2,1,1)
-plot(t_traj, U_ref(1,:), '--', t_iter, U_actual(1,:), 'LineWidth', 1.2);
-title('steering angle')
+plot(t_traj, U_ref(1,:), '--', t_traj, U_actual(1,:), 'LineWidth', 1.2);
 xlabel('time (s)')
-ylabel('delta (rad)')
+ylabel('\delta (rad)')
 ylim([-1 1]);
 grid on
 subplot(2,1,2)
-plot(t_traj, U_ref(2,:), '--', t_iter, U_actual(2,:), 'LineWidth', 1.2);
-title('acceleration')
+plot(t_traj, U_ref(2,:), '--', t_traj, U_actual(2,:), 'LineWidth', 1.2);
 xlabel('time (s)')
 ylabel('a (m/s^2)')
 ylim([-1.6 1.6]);
 grid on
 
-figure(3)
-plot(t_iter, com_time, t_iter, dt*ones(1,length(t_iter)), '--', 'LineWidth', 1.2)
-str = sprintf('average time: %.4f', com_time_avg);
-text(1,0.06, str)
+% Plot computational time in each iterations
+figure(4)
+title('Computational Time')
+plot(1:length(com_time), com_time, 'x', 1:length(com_time), dt*ones(1,length(t_traj)), '--', 'LineWidth', 1.2)
+text(1,0.06, sprintf('average time: %.4f', com_time_avg));
 grid on
 title('computation time')
 xlabel('time (s)')
@@ -105,9 +168,7 @@ xlim([-inf inf])
 
 
 %% Function for constructing equality constraints and inequality constraints
-function [Aeq, beq] = eq_constraint(x_ref, u_ref, x0, dt)
-
-    Np = length(x_ref);
+function [Aeq, beq] = eq_constraint(x_ref, u_ref, x0, dt, Np)
 
     beq = zeros(4*(Np+1),1);
     beq(1:4, 1) = x0;
