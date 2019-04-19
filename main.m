@@ -7,7 +7,7 @@ dt = 0.05; % sampling period [s]
 sim_dt = 0.005;
 
 %% 1. Load reference trajectory
-load('ref_traj_3.mat');
+load('ref_traj_1.mat');
 t_traj = (0:(length(X_ref)-1)) * dt;
 
 %% 2. MPC loop
@@ -20,7 +20,7 @@ R_blk = kron(eye(Np), R);
 H_blk = blkdiag(Q_blk, R_blk);
 
 % Initial condition x = [x0; y0; psi0; v0], u = [delta0, acc0]
-x0 = [0.2; 0.2; 0.4; 2.4];
+x0 = [0.2; 0.2; 0; 11.3];
 X_actual = [];
 U_actual = [];
 
