@@ -7,21 +7,20 @@ dt = 0.05; % sampling period [s]
 sim_dt = 0.005; % simulation time step [s]
 
 %% 1. Load reference trajectory
-load('ref_traj_1.mat');
+load('ref_traj_3.mat');
 t_traj = (0:(length(X_ref)-1)) * dt;
 
 %% 2. MPC loop
 % Define MPC paramenters and constraints
-Np = 50; % finite time step
-Q = blkdiag(10, 10, 2, 2);
-R = blkdiag(0.5,0.5);
+Np = 20; % finite time step
+Q = blkdiag(2, 2, 1, 1);
+R = blkdiag(1, 0.1);
 Q_blk = kron(eye(Np+1), Q);
 R_blk = kron(eye(Np), R);
 H_blk = blkdiag(Q_blk, R_blk);
 
-% Initial condition x = [x0; y0; psi0; v0], u = [delta0, acc0]
-% Random Initial Condition (uniform distribution)
-x0 = [0; 2.5; 0; 11.6];
+% Initial condition x = [x0; y0; psi0; v0]
+x0 = [-1.4; 1; 1.5; 11.6];
 
 X_actual = [];
 U_actual = [];
@@ -50,7 +49,7 @@ for i = 1:length(t_traj)
         [Aeq, beq] = eq_constraint(x_ref, u_ref, (x0-x_ref(:,1)), dt, N);
 
         % Inequality constraint
-        [lb, ub] = ineq_constraint(u_ref, N);
+        [lb, ub] = lu_bound(u_ref, N);
 
         % Solve qp
         D_star = cplexqp(H_blk_temp, zeros((6*N+4),1), [], [], Aeq, beq, lb, ub);
@@ -71,7 +70,7 @@ for i = 1:length(t_traj)
         [Aeq, beq] = eq_constraint(x_ref, u_ref, (x0-x_ref(:,1)), dt, Np);
 
         % Inequality constraint
-        [lb, ub] = ineq_constraint(u_ref, Np);
+        [lb, ub] = lu_bound(u_ref, Np);
 
         % Solve qp
         D_star = cplexqp(H_blk, zeros((6*Np+4),1), [], [], Aeq, beq, lb, ub);
@@ -174,37 +173,37 @@ xlim([-inf inf])
 
 
 %% Function for constructing equality constraints and inequality constraints
-function [Aeq, beq] = eq_constraint(x_ref, u_ref, x0, dt, Np)
+function [Aeq, beq] = eq_constraint(x_ref, u_ref, x0, dt, N)
 
-    beq = zeros(4*(Np+1),1);
+    beq = zeros(4*(N+1),1);
     beq(1:4, 1) = x0;
 
-    A_cell = cell(Np,1);
-    B_cell = cell(Np,1);
+    A_cell = cell(N,1);
+    B_cell = cell(N,1);
 
-    for i = 1:Np
+    for i = 1:N
         [A_cell{i}, B_cell{i}] = ltv_mdl(x_ref(:,i), u_ref(:,i), dt);
     end
 
-    Aeq_cell = cell(Np+1, 2*Np+1);
-    Aeq_cell(:,1:Np+1) = {zeros(4,4)};
-    Aeq_cell(:,Np+2:end) = {zeros(4,2)};
+    Aeq_cell = cell(N+1, 2*N+1);
+    Aeq_cell(:,1:N+1) = {zeros(4,4)};
+    Aeq_cell(:,N+2:end) = {zeros(4,2)};
     Aeq_cell{1,1} = eye(4);
-    for j = 2:Np+1
+    for j = 2:N+1
         Aeq_cell{j,j-1} = A_cell{j-1};
         Aeq_cell{j,j} = -eye(4);
-        Aeq_cell{j,j+Np} = B_cell{j-1};
+        Aeq_cell{j,j+N} = B_cell{j-1};
     end
 
     Aeq = cell2mat(Aeq_cell);
 
 end
 
-function [lb, ub] = ineq_constraint(u_ref, Np)
+function [lb, ub] = lu_bound(u_ref, N)
     % Input and state contraints
     delta_upper = 37 * (pi/180); % [rad]
     delta_lower = -37 * (pi/180); % [rad]
-    acc_upper = 1.5; % [m/s^2]
+    acc_upper = 1; % [m/s^2]
     acc_lower = -1.5; % [m/s^2]
     x_upper = 3; % [m]
     x_lower = -3; % [m]
@@ -215,12 +214,12 @@ function [lb, ub] = ineq_constraint(u_ref, Np)
     u_upper = 5; % [m/s]
     u_lower = -5; % [m/s]
     
-    u_ref_v = reshape(u_ref, 2*Np,1);
+    u_ref_v = reshape(u_ref, 2*N,1);
     
-    x_ub = repmat([x_upper; y_upper; psi_upper; u_upper], (Np+1), 1);
-    x_lb = repmat([x_lower; y_lower; psi_lower; u_lower], (Np+1), 1);
-    u_ub = repmat([delta_upper; acc_upper], Np, 1) - u_ref_v;
-    u_lb = repmat([delta_lower; acc_lower], Np, 1) - u_ref_v;
+    x_ub = repmat([x_upper; y_upper; psi_upper; u_upper], (N+1), 1);
+    x_lb = repmat([x_lower; y_lower; psi_lower; u_lower], (N+1), 1);
+    u_ub = repmat([delta_upper; acc_upper], N, 1) - u_ref_v;
+    u_lb = repmat([delta_lower; acc_lower], N, 1) - u_ref_v;
     
     ub = [x_ub; u_ub];
     lb = [x_lb; u_lb];
