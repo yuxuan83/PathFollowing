@@ -4,7 +4,7 @@ clc
 
 %% Paramenters
 dt = 0.05; % sampling period [s]
-sim_dt = 0.005;
+sim_dt = 0.005; % simulation time step [s]
 
 %% 1. Load reference trajectory
 load('ref_traj_1.mat');
@@ -12,7 +12,7 @@ t_traj = (0:(length(X_ref)-1)) * dt;
 
 %% 2. MPC loop
 % Define MPC paramenters and constraints
-Np = 10; % finite time step
+Np = 50; % finite time step
 Q = blkdiag(10, 10, 2, 2);
 R = blkdiag(0.5,0.5);
 Q_blk = kron(eye(Np+1), Q);
@@ -20,7 +20,9 @@ R_blk = kron(eye(Np), R);
 H_blk = blkdiag(Q_blk, R_blk);
 
 % Initial condition x = [x0; y0; psi0; v0], u = [delta0, acc0]
-x0 = [0.2; 0.2; 0; 11.3];
+% Random Initial Condition (uniform distribution)
+x0 = [0; 2.5; 0; 11.6];
+
 X_actual = [];
 U_actual = [];
 
@@ -107,36 +109,40 @@ axis equal
 grid on
 title('Path')
 xlim([-0.5, max(X_ref(1,:))+1])
-xlabel('x');
-ylabel('y');
+xlabel('x')
+ylabel('y')
 
 % Plot states versus time
 figure(2)
 suptitle('States Versus Time')
 % x
 subplot(4,1,1) 
-plot(t_traj, X_ref(1,:), '--', t_actual, X_actual(1,:), 'LineWidth', 1.2);
+plot(t_traj, X_ref(1,:), '--', t_actual, X_actual(1,:), 'LineWidth', 1.2)
 grid on
-xlabel('time (s)');
-ylabel('x (m)');
+xlabel('time (s)')
+ylabel('x (m)')
+xlim([-inf inf])
 % y
 subplot(4,1,2)
-plot(t_traj, X_ref(2,:), '--', t_actual, X_actual(2,:), 'LineWidth', 1.2);
+plot(t_traj, X_ref(2,:), '--', t_actual, X_actual(2,:), 'LineWidth', 1.2)
 grid on
-xlabel('time (s)');
-ylabel('y (m)');
+xlabel('time (s)')
+ylabel('y (m)')
+xlim([-inf inf])
 % psi
 subplot(4,1,3)
-plot(t_traj, X_ref(3,:), '--', t_actual, X_actual(3,:), 'LineWidth', 1.2);
+plot(t_traj, X_ref(3,:), '--', t_actual, X_actual(3,:), 'LineWidth', 1.2)
 grid on
-xlabel('time (s)');
-ylabel('\psi (rad)');
+xlabel('time (s)')
+ylabel('\psi (rad)')
+xlim([-inf inf])
 % u
 subplot(4,1,4)
-plot(t_traj, X_ref(4,:), '--', t_actual, X_actual(4,:), 'LineWidth', 1.2);
+plot(t_traj, X_ref(4,:), '--', t_actual, X_actual(4,:), 'LineWidth', 1.2)
 grid on
-xlabel('time (s)');
-ylabel('u (m/s)');
+xlabel('time (s)')
+ylabel('u (m/s)')
+xlim([-inf inf])
 
 % Plot input versus time
 figure(3)
@@ -158,7 +164,7 @@ grid on
 figure(4)
 title('Computational Time')
 plot(1:length(com_time), com_time, 'x', 1:length(com_time), dt*ones(1,length(t_traj)), '--', 'LineWidth', 1.2)
-text(1,0.06, sprintf('average time: %.4f', com_time_avg));
+text(1,0.06, sprintf('average time: %.4f', com_time_avg))
 grid on
 title('computation time')
 xlabel('time (s)')
@@ -200,10 +206,10 @@ function [lb, ub] = ineq_constraint(u_ref, Np)
     delta_lower = -37 * (pi/180); % [rad]
     acc_upper = 1.5; % [m/s^2]
     acc_lower = -1.5; % [m/s^2]
-    x_upper = 2; % [m]
-    x_lower = -2; % [m]
-    y_upper = 2; % [m]
-    y_lower = -2; % [m]
+    x_upper = 3; % [m]
+    x_lower = -3; % [m]
+    y_upper = 3; % [m]
+    y_lower = -3; % [m]
     psi_upper = 90 * (pi/180); % [rad]
     psi_lower = -90 * (pi/180); % [rad]
     u_upper = 5; % [m/s]
