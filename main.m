@@ -7,7 +7,7 @@ dt = 0.05; % sampling period [s]
 sim_dt = 0.005; % simulation time step [s]
 
 %% 1. Load reference trajectory
-load('ref_traj_3.mat');
+load('ref_traj_1.mat');
 t_traj = (0:(length(X_ref)-1)) * dt;
 
 %% 2. MPC loop
@@ -20,7 +20,7 @@ R_blk = kron(eye(Np), R);
 H_blk = blkdiag(Q_blk, R_blk);
 
 % Initial condition x = [x0; y0; psi0; v0]
-x0 = [-1.4; 1; 1.5; 11.6];
+x0 = [0; 3; 0.2; 11.6];
 
 X_actual = [];
 U_actual = [];
@@ -163,7 +163,7 @@ grid on
 figure(4)
 title('Computational Time')
 plot(1:length(com_time), com_time, 'x', 1:length(com_time), dt*ones(1,length(t_traj)), '--', 'LineWidth', 1.2)
-text(1,0.06, sprintf('average time: %.4f', com_time_avg))
+text(10,0.06, sprintf('average time: %.4f', com_time_avg))
 grid on
 title('computation time')
 xlabel('time (s)')
@@ -205,10 +205,10 @@ function [lb, ub] = lu_bound(u_ref, N)
     delta_lower = -37 * (pi/180); % [rad]
     acc_upper = 1; % [m/s^2]
     acc_lower = -1.5; % [m/s^2]
-    x_upper = 3; % [m]
-    x_lower = -3; % [m]
-    y_upper = 3; % [m]
-    y_lower = -3; % [m]
+    x_upper = 2; % [m]
+    x_lower = -2; % [m]
+    y_upper = 4; % [m]
+    y_lower = -4; % [m]
     psi_upper = 90 * (pi/180); % [rad]
     psi_lower = -90 * (pi/180); % [rad]
     u_upper = 5; % [m/s]
