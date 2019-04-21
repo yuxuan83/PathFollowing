@@ -7,7 +7,7 @@ dt = 0.05; % sampling period [s]
 sim_dt = 0.005; % simulation time step [s]
 
 %% 1. Load reference trajectory
-load('ref_traj_1.mat');
+load('ref_traj_3.mat');
 t_traj = (0:(length(X_ref)-1)) * dt;
 
 %% 2. MPC loop
@@ -20,7 +20,7 @@ R_blk = kron(eye(Np), R);
 H_blk = blkdiag(Q_blk, R_blk);
 
 % Initial condition x = [x0; y0; psi0; v0]
-x0 = [-1.4; 1; 1.5; 11.6];
+x0 = [-1.4; 1; 0.5; 11.6];
 
 X_actual = [];
 U_actual = [];
@@ -107,7 +107,8 @@ plot(X_ref(1,:), X_ref(2,:), '--', X_actual(1,:), X_actual(2,:), 'LineWidth', 1.
 axis equal
 grid on
 title('Path')
-xlim([-0.5, max(X_ref(1,:))+1])
+%xlim([-0.5, max(X_ref(1,:))+1])
+% xlim([0,40]);
 xlabel('x')
 ylabel('y')
 
