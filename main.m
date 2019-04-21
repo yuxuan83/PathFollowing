@@ -113,7 +113,7 @@ ylabel('y')
 
 % Plot states versus time
 figure(2)
-suptitle('States Versus Time')
+
 % x
 subplot(4,1,1) 
 plot(t_traj, X_ref(1,:), '--', t_actual, X_actual(1,:), 'LineWidth', 1.2)
@@ -145,7 +145,6 @@ xlim([-inf inf])
 
 % Plot input versus time
 figure(3)
-suptitle('Inputs Versus Time')
 subplot(2,1,1)
 plot(t_traj, U_ref(1,:), '--', t_traj, U_actual(1,:), 'LineWidth', 1.2);
 xlabel('time (s)')
