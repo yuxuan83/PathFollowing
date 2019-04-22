@@ -20,11 +20,7 @@ R_blk = kron(eye(Np), R);
 H_blk = blkdiag(Q_blk, R_blk);
 
 % Initial condition x = [x0; y0; psi0; v0]
-<<<<<<< HEAD
 x0 = [-1.4; 1; 0.5; 11.6];
-=======
-x0 = [0; 3; 0.2; 11.6];
->>>>>>> 1b0a6415be333759284399ae45824e13fa5aa302
 
 X_actual = [];
 U_actual = [];
