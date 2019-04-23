@@ -7,26 +7,30 @@ dt = 0.05; % sampling period [s]
 sim_dt = 0.005; % simulation time step [s]
 
 %% 1. Load reference trajectory
-load('ref_traj_3.mat');
+load('ref_traj_1.mat');
 t_traj = (0:(length(X_ref)-1)) * dt;
 
 %% 2. MPC loop
 % Define MPC paramenters and constraints
 Np = 20; % finite time step
-Q = blkdiag(2, 2, 1, 1);
-R = blkdiag(1, 0.1);
+Q = diag([2, 2, 1, 1]);
+R = diag([0.1, 0.01]);
 Q_blk = kron(eye(Np+1), Q);
 R_blk = kron(eye(Np), R);
 H_blk = blkdiag(Q_blk, R_blk);
 
 % Initial condition x = [x0; y0; psi0; v0]
-x0 = [-1.4; 1; 0.5; 11.6];
+x_initial = [0.4; 0.2; 0.4; 0.8];
+% x_initial = [1; 0.2; 1.4; 9.0]; % initial condition for ref_traj_3
+x0 = x_initial;
 
 X_actual = [];
 U_actual = [];
 
 % computation time in each iteration
 com_time = [];
+% For disable display the information on console while using quadprog
+options =  optimset('Display','off'); 
 
 % Iterations
 for i = 1:length(t_traj)
@@ -52,7 +56,9 @@ for i = 1:length(t_traj)
         [lb, ub] = lu_bound(u_ref, N);
 
         % Solve qp
-        D_star = cplexqp(H_blk_temp, zeros((6*N+4),1), [], [], Aeq, beq, lb, ub);
+%         D_star = cplexqp(H_blk_temp, zeros((6*N+4),1), [], [], Aeq, beq, lb, ub); % CPLEX
+        D_star = quadprog(H_blk_temp, zeros((6*N+4),1), [], [], Aeq, beq, lb, ub, [], options); % quadprog
+        
 
         % Stop tick
         time_elapse = toc;
@@ -73,7 +79,8 @@ for i = 1:length(t_traj)
         [lb, ub] = lu_bound(u_ref, Np);
 
         % Solve qp
-        D_star = cplexqp(H_blk, zeros((6*Np+4),1), [], [], Aeq, beq, lb, ub);
+%         D_star = cplexqp(H_blk, zeros((6*Np+4),1), [], [], Aeq, beq, lb, ub); % CPLEX
+        D_star = quadprog(H_blk, zeros((6*Np+4),1), [], [], Aeq, beq, lb, ub, [], options); % quadprog
 
         % exract the first optimal control input
         du_star = D_star(4*(Np+1)+1:4*(Np+1)+2,1);
@@ -99,6 +106,7 @@ end
 % Prost process of data
 com_time_avg = mean(com_time);
 t_actual = (0:(length(X_actual)-1)) * sim_dt;
+lat_err = mean(abs(X_ref(2,:) - X_actual(2,1:10:end)))
 
 %% Plot results
 % Plot path: x versus y
@@ -106,15 +114,14 @@ figure(1)
 plot(X_ref(1,:), X_ref(2,:), '--', X_actual(1,:), X_actual(2,:), 'LineWidth', 1.2)
 axis equal
 grid on
-title('Path')
+text(1,2, sprintf('x_0 = [%.1f; %.1f; %.1f; %.1f]', x_initial(1), x_initial(2), x_initial(3), x_initial(4)))
 %xlim([-0.5, max(X_ref(1,:))+1])
-% xlim([0,40]);
+xlim([0,10]);
 xlabel('x')
 ylabel('y')
 
 % Plot states versus time
 figure(2)
-
 % x
 subplot(4,1,1) 
 plot(t_traj, X_ref(1,:), '--', t_actual, X_actual(1,:), 'LineWidth', 1.2)
@@ -168,7 +175,7 @@ grid on
 title('computation time')
 xlabel('time (s)')
 ylabel('computation time')
-ylim([0 0.08])
+ylim([0 0.07])
 xlim([-inf inf])
 
 
@@ -207,12 +214,12 @@ function [lb, ub] = lu_bound(u_ref, N)
     acc_lower = -1.5; % [m/s^2]
     x_upper = 2; % [m]
     x_lower = -2; % [m]
-    y_upper = 4; % [m]
-    y_lower = -4; % [m]
-    psi_upper = 90 * (pi/180); % [rad]
-    psi_lower = -90 * (pi/180); % [rad]
-    u_upper = 5; % [m/s]
-    u_lower = -5; % [m/s]
+    y_upper = 2; % [m]
+    y_lower = -2; % [m]
+    psi_upper = 80 * (pi/180); % [rad]
+    psi_lower = -80 * (pi/180); % [rad]
+    u_upper = 1.5; % [m/s]
+    u_lower = -1.5; % [m/s]
     
     u_ref_v = reshape(u_ref, 2*N,1);
     
