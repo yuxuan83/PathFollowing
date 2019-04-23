@@ -20,8 +20,8 @@ R_blk = kron(eye(Np), R);
 H_blk = blkdiag(Q_blk, R_blk);
 
 % Initial condition x = [x0; y0; psi0; v0]
-x_initial = [0.4; 0.2; 0.4; 0.8];
-% x_initial = [1; 0.2; 1.4; 9.0]; % initial condition for ref_traj_3
+x_initial = [0.4; 1.6; 0.4; 9.5];
+% x_initial = [1; 0.2; 1.4; 9.5]; % initial condition for ref_traj_3
 x0 = x_initial;
 
 X_actual = [];
